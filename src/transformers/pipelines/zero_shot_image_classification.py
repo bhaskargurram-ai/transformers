@@ -8,7 +8,7 @@ from ..utils import (
     logging,
     requires_backends,
 )
-from .base import Pipeline, build_pipeline_init_args
+from .base import Pipeline, build_pipeline_init_args, format_hypothesis_template
 
 
 if is_vision_available():
@@ -148,7 +148,7 @@ class ZeroShotImageClassificationPipeline(Pipeline):
         inputs = self.image_processor(images=[image], return_tensors="pt")
         inputs = inputs.to(self.dtype)
         inputs["candidate_labels"] = candidate_labels
-        sequences = [hypothesis_template.format(x) for x in candidate_labels]
+        sequences = [format_hypothesis_template(hypothesis_template, x) for x in candidate_labels]
         tokenizer_default_kwargs = {"padding": True}
         if "siglip" in self.model.config.model_type:
             tokenizer_default_kwargs.update(padding="max_length", max_length=64, truncation=True)

@@ -20,6 +20,7 @@ import importlib
 import json
 import os
 import pickle
+import string
 import sys
 import traceback
 import types
@@ -360,6 +361,34 @@ def load_assistant_model(
         )
 
     return loaded_assistant_model, loaded_assistant_tokenizer
+
+
+def format_hypothesis_template(hypothesis_template: str, label: str) -> str:
+    """
+    Fill a zero-shot `hypothesis_template` with a candidate label.
+
+    The template is caller-supplied text, and `str.format` accepts the full format mini-language: a format spec
+    such as `"{:>9999999999}"` makes it allocate gigabytes, and a field such as `"{0.__class__}"` reads attributes
+    of the label. Only plain `{}` / `{0}` placeholders (optionally with a `!r`, `!s` or `!a` conversion) are
+    accepted; literal braces can still be written as `{{` and `}}`.
+    """
+    if not isinstance(hypothesis_template, str):
+        # Not a template we can inspect; keep the error `str.format` has always produced for such values.
+        return hypothesis_template.format(label)
+    try:
+        fields = list(string.Formatter().parse(hypothesis_template))
+    except ValueError as e:
+        raise ValueError(f"Invalid `hypothesis_template` {hypothesis_template!r}: {e}") from e
+    for _, field_name, format_spec, _ in fields:
+        if field_name is None:
+            continue
+        if field_name not in ("", "0") or format_spec:
+            raise ValueError(
+                f"Invalid `hypothesis_template` {hypothesis_template!r}: only plain `{{}}` placeholders are "
+                "supported (no field names, attribute or index access, or format specifications). Use `{{{{` and "
+                "`}}}}` for literal braces."
+            )
+    return hypothesis_template.format(label)
 
 
 class PipelineException(Exception):

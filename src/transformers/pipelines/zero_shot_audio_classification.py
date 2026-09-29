@@ -22,7 +22,7 @@ from ..utils import (
     logging,
 )
 from .audio_classification import ffmpeg_read
-from .base import Pipeline, build_pipeline_init_args
+from .base import Pipeline, build_pipeline_init_args, format_hypothesis_template
 
 
 logger = logging.get_logger(__name__)
@@ -124,7 +124,7 @@ class ZeroShotAudioClassificationPipeline(Pipeline):
         )
         inputs = inputs.to(self.dtype)
         inputs["candidate_labels"] = candidate_labels
-        sequences = [hypothesis_template.format(x) for x in candidate_labels]
+        sequences = [format_hypothesis_template(hypothesis_template, x) for x in candidate_labels]
         text_inputs = self.tokenizer(sequences, return_tensors="pt", padding=True)
         inputs["text_inputs"] = [text_inputs]
         return inputs

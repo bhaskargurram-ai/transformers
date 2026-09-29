@@ -20,6 +20,8 @@ from transformers import (
     ZeroShotClassificationPipeline,
     pipeline,
 )
+from transformers.pipelines.base import format_hypothesis_template
+from transformers.pipelines.zero_shot_classification import ZeroShotClassificationArgumentHandler
 from transformers.testing_utils import (
     is_pipeline_test,
     is_torch_available,
@@ -286,3 +288,31 @@ class ZeroShotClassificationPipelineTests(unittest.TestCase):
                 "scores": [0.817, 0.713, 0.018, 0.018],
             },
         )
+
+
+class ZeroShotHypothesisTemplateTests(unittest.TestCase):
+    def test_plain_placeholders_are_filled(self):
+        self.assertEqual(format_hypothesis_template("This example is {}.", "sports"), "This example is sports.")
+        self.assertEqual(format_hypothesis_template("{0} and {0}", "cats"), "cats and cats")
+        self.assertEqual(format_hypothesis_template("{{{}}}", "x"), "{x}")
+        self.assertEqual(format_hypothesis_template("It is {!r}", "x"), "It is 'x'")
+
+    def test_format_specs_and_field_access_are_rejected(self):
+        for template in [
+            "{:>9999999999}",
+            "{0:>9999999999}",
+            "{:{}}",
+            "{0.__class__}",
+            "{0[0]}",
+            "{label}",
+            "{1}",
+        ]:
+            with self.subTest(template=template), self.assertRaises(ValueError):
+                format_hypothesis_template(template, "label")
+
+    def test_argument_handler_rejects_unsafe_template(self):
+        handler = ZeroShotClassificationArgumentHandler()
+        pairs, sequences = handler("A sentence.", ["politics"], "This text is about {}")
+        self.assertEqual(pairs, [["A sentence.", "This text is about politics"]])
+        with self.assertRaises(ValueError):
+            handler("A sentence.", ["politics"], "{:>9999999999}")
